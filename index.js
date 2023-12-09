@@ -4,8 +4,8 @@ const {
     token,
     tracksPath
 } = require('./config.json');
-
-const fs = require.apply('fs');
+const fs = require('fs');
+const path = require('path')
 
 const client = new Discord.Client({
     intents: [
@@ -62,16 +62,27 @@ client.on('messageCreate', message => {
     }
 });
 
-const queueContract = {
-    textChannel: message.channel,
-    voiceChannel: voiceChannel,
-    connection: null,
-    songs: [],
-    volume: 5,
-    playing: true,
-};
+function readTrack (path) {
+    console.log(path);
+    fs.readFile(path, {encoding: 'base64'}, (err, data) => {
+        if (err) {
+            console.log(`An error has occurred: (${err})`);
+        }
+        else {
+            return data;
+        }
+    });
+}
 
 async function playTracks (message, path, serverQueue) {
+    const queueContract = {
+        textChannel: message.channel,
+        voiceChannel: voiceChannel,
+        connection: null,
+        songs: [],
+        volume: 5,
+        playing: true,
+    };    
     const voiceChannel = message.member.voice.channel;
     const permissions = voiceChannel.permissionsFor(message.client.user)
     const tracks = fs.readdirSync(path);
@@ -84,7 +95,11 @@ async function playTracks (message, path, serverQueue) {
     }
 
     if (!serverQueue) {
-        
+        for (i = 0; i < tracks.length; i++) {
+            const track = tracks[i];
+            const trackAudio = readTrack(path.join(path, track));
+            queueContract.songs.push(trackAudio);
+        }
     }
     return;
 }
