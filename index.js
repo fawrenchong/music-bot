@@ -74,7 +74,7 @@ function readTrack (path) {
     });
 }
 
-async function playTracks (message, path, serverQueue) {
+async function playTracks (message, trackPath, serverQueue) {
     const queueContract = {
         textChannel: message.channel,
         voiceChannel: voiceChannel,
@@ -85,7 +85,7 @@ async function playTracks (message, path, serverQueue) {
     };    
     const voiceChannel = message.member.voice.channel;
     const permissions = voiceChannel.permissionsFor(message.client.user)
-    const tracks = fs.readdirSync(path);
+    const tracks = fs.readdirSync(trackPath);
 
     if (!voiceChannel) {
         return message.channel.send("Please join a voice channel");
@@ -97,7 +97,7 @@ async function playTracks (message, path, serverQueue) {
     if (!serverQueue) {
         for (i = 0; i < tracks.length; i++) {
             const track = tracks[i];
-            const trackAudio = readTrack(path.join(path, track));
+            const trackAudio = readTrack(path.join(trackPath, track));
             queueContract.songs.push(trackAudio);
         }
     }
