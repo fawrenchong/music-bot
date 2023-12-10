@@ -101,7 +101,36 @@ async function playTracks (message, path, serverQueue) {
             queueContract.songs.push(trackAudio);
         }
     }
+
+    queue.set(message.guildId, queueContract);
+    
+    try {
+        var connection = await voiceChannel.join();
+        queueContract.connection = connection;
+        play(message.guild, queueContract.songs[0]);
+    } catch (err) {
+        console.log(err);
+        queue.delete(message.guild.id);
+        return message.channel.send(err);
+    }
     return;
+}
+
+function play(guild, song) {
+    const serverQueue = queue.get(guild.id);
+    if (!song) {
+        serverQueue.voiceChannel.leave();
+        queue.delete(guild.id);
+        return;
+    }
+    const dispatcher = serverQueue.connection
+        .play(song)
+        .on("finish", () => {
+            serverQueue.songs.shift();
+            play(guild, serverQueue.songs[0]);
+        })
+        .on("error", error => console.error(error));
+    dispatcher.setVolumneLogarithmic(serverQueue.volume / 5);
 }
 
 client.login(token);
