@@ -8,7 +8,6 @@ const fs = require('fs');
 const path = require('path')
 
 const getVoiceConnection = require("@discordjs/voice");
-const { channel } = require('diagnostics_channel');
 
 const client = new Discord.Client({
     intents: [
@@ -66,7 +65,6 @@ client.on('messageCreate', message => {
 });
 
 function readTrack (path) {
-    console.log(path);
     fs.readFile(path, {encoding: 'base64'}, (err, data) => {
         if (err) {
             console.log(`An error has occurred: (${err})`);
@@ -81,7 +79,7 @@ async function playTracks (message, trackPath, serverQueue) {
     const voiceChannel = message.member.voice.channel;
 
     const connection = getVoiceConnection.joinVoiceChannel({
-        channelId: voiceChannel.id, 
+        channelId: message.member.voice.channelId, 
         guildId: voiceChannel.guildId,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
@@ -107,7 +105,7 @@ async function playTracks (message, trackPath, serverQueue) {
     if (!serverQueue) {
         for (i = 0; i < tracks.length; i++) {
             const track = tracks[i];
-            const trackAudio = readTrack(path.join(trackPath, track));
+            const data = readTrack(path.join(trackPath, track));
             queueContract.songs.push(trackAudio);
         }
     }
@@ -115,9 +113,8 @@ async function playTracks (message, trackPath, serverQueue) {
     queue.set(message.guildId, queueContract);
     
     try {
-        // var connection = await voiceChannel;
         queueContract.connection = connection;
-        play(message.guild, queueContract.songs[0]);
+        play(connection, message.guild, queueContract.songs[0]);
     } catch (err) {
         console.log(err);
         queue.delete(message.guild.id);
@@ -126,21 +123,22 @@ async function playTracks (message, trackPath, serverQueue) {
     return;
 }
 
-function play(guild, song) {
+function play(connection, guild, song) {
     const serverQueue = queue.get(guild.id);
-    if (!song) {
-        serverQueue.voiceChannel.leave();
-        queue.delete(guild.id);
-        return;
-    }
-    const dispatcher = serverQueue.connection
-        .play(song)
-        .on("finish", () => {
-            serverQueue.songs.shift();
-            play(guild, serverQueue.songs[0]);
-        })
-        .on("error", error => console.error(error));
-    dispatcher.setVolumneLogarithmic(serverQueue.volume / 5);
+    // console.log(song)
+    // if (!song) {
+    //     connection.destroy();
+    //     queue.delete(guild.id);
+    //     return;
+    // }
+    // const dispatcher = serverQueue.connection
+    //     .play(song)
+    //     .on("finish", () => {
+    //         serverQueue.songs.shift();
+    //         play(guild, serverQueue.songs[0]);
+    //     })
+    //     .on("error", error => console.error(error));
+    // dispatcher.setVolumneLogarithmic(serverQueue.volume / 5);
 }
 
 client.login(token);
