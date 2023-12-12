@@ -7,6 +7,9 @@ const {
 const fs = require('fs');
 const path = require('path')
 
+const getVoiceConnection = require("@discordjs/voice");
+const { channel } = require('diagnostics_channel');
+
 const client = new Discord.Client({
     intents: [
         Discord.GatewayIntentBits.Guilds,
@@ -75,6 +78,16 @@ function readTrack (path) {
 }
 
 async function playTracks (message, trackPath, serverQueue) {
+    const voiceChannel = message.member.voice.channel;
+
+    const connection = getVoiceConnection.joinVoiceChannel({
+        channelId: voiceChannel.id, 
+        guildId: voiceChannel.guildId,
+        adapterCreator: voiceChannel.guild.voiceAdapterCreator
+    });
+
+    const permissions = voiceChannel.permissionsFor(message.client.user);
+    const tracks = fs.readdirSync(trackPath);
     const queueContract = {
         textChannel: message.channel,
         voiceChannel: voiceChannel,
@@ -83,14 +96,11 @@ async function playTracks (message, trackPath, serverQueue) {
         volume: 5,
         playing: true,
     };    
-    const voiceChannel = message.member.voice.channel;
-    const permissions = voiceChannel.permissionsFor(message.client.user)
-    const tracks = fs.readdirSync(trackPath);
 
     if (!voiceChannel) {
         return message.channel.send("Please join a voice channel");
     }
-    if (!permissions.has("CONNECT") || !permissions.has("SPEAK")) {
+    if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
         return message.channel.send("The bot needs permissions to connect and speak in voice channel");
     }
 
@@ -105,7 +115,7 @@ async function playTracks (message, trackPath, serverQueue) {
     queue.set(message.guildId, queueContract);
     
     try {
-        var connection = await voiceChannel.join();
+        // var connection = await voiceChannel;
         queueContract.connection = connection;
         play(message.guild, queueContract.songs[0]);
     } catch (err) {
