@@ -75,6 +75,16 @@ function readTrack (path) {
     });
 }
 
+function processData (data) {
+    const raw = window.atob(data);
+    const binaryData = new Uint8Array(new ArrayBuffer(raw.length));
+    for (let i = 0; i < raw.length; i++) {
+        binaryData[i] = raw.charCodeAt(i);
+    }
+    const blob = new Blob([binaryData], {'type': 'video/mp4'});
+    return blob
+}
+
 async function playTracks (message, trackPath, serverQueue) {
     const voiceChannel = message.member.voice.channel;
 
@@ -106,6 +116,7 @@ async function playTracks (message, trackPath, serverQueue) {
         for (i = 0; i < tracks.length; i++) {
             const track = tracks[i];
             const data = readTrack(path.join(trackPath, track));
+            trackAudio = processData(data);
             queueContract.songs.push(trackAudio);
         }
     }
