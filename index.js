@@ -7,13 +7,14 @@ const {
 const fs = require('fs');
 const path = require('path')
 
-const getVoiceConnection = require("@discordjs/voice");
+const {joinVoiceChannel, createAudioPlayer, createAudioResource} = require("@discordjs/voice");
 
 const client = new Discord.Client({
     intents: [
         Discord.GatewayIntentBits.Guilds,
         Discord.GatewayIntentBits.GuildMessages,
-        Discord.GatewayIntentBits.MessageContent
+        Discord.GatewayIntentBits.MessageContent,
+        Discord.GatewayIntentBits.GuildVoiceStates
     ]
 });
 
@@ -76,7 +77,7 @@ function readTrack (path) {
 }
 
 function processData (data) {
-    const raw = window.atob(data);
+    const raw = Buffer.from(data, 'base64');
     const binaryData = new Uint8Array(new ArrayBuffer(raw.length));
     for (let i = 0; i < raw.length; i++) {
         binaryData[i] = raw.charCodeAt(i);
@@ -87,37 +88,42 @@ function processData (data) {
 
 async function playTracks (message, trackPath, serverQueue) {
     const voiceChannel = message.member.voice.channel;
-
-    const connection = getVoiceConnection.joinVoiceChannel({
-        channelId: message.member.voice.channelId, 
-        guildId: voiceChannel.guildId,
-        adapterCreator: voiceChannel.guild.voiceAdapterCreator
-    });
-
-    const permissions = voiceChannel.permissionsFor(message.client.user);
+    
+    if (!voiceChannel) {
+        return message.channel.send('The user making this command should be in a voice channel.');
+    }
+    
+    const player = createAudioPlayer();
+    
     const tracks = fs.readdirSync(trackPath);
     const queueContract = {
         textChannel: message.channel,
         voiceChannel: voiceChannel,
         connection: null,
+        player: null, 
         songs: [],
         volume: 5,
         playing: true,
     };    
-
-    if (!voiceChannel) {
-        return message.channel.send("Please join a voice channel");
-    }
+    
+    
+    const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
         return message.channel.send("The bot needs permissions to connect and speak in voice channel");
     }
 
+    const connection = joinVoiceChannel({
+        channelId: voiceChannel.id, 
+        guildId: voiceChannel.guild.id,
+        adapterCreator: voiceChannel.guild.voiceAdapterCreator
+    });
+    
     if (!serverQueue) {
         for (i = 0; i < tracks.length; i++) {
-            const track = tracks[i];
-            const data = readTrack(path.join(trackPath, track));
-            trackAudio = processData(data);
-            queueContract.songs.push(trackAudio);
+            const trackName = tracks[i]
+            const fullTrackPath = path.join(trackPath, trackName);
+            const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
+            queueContract.songs.push(trackResource);
         }
     }
 
@@ -125,7 +131,9 @@ async function playTracks (message, trackPath, serverQueue) {
     
     try {
         queueContract.connection = connection;
-        play(connection, message.guild, queueContract.songs[0]);
+        queueContract.player = player;
+        connection.subscribe(player);
+        play(connection, player, message.guild, queueContract.songs[0]);
     } catch (err) {
         console.log(err);
         queue.delete(message.guild.id);
@@ -134,14 +142,16 @@ async function playTracks (message, trackPath, serverQueue) {
     return;
 }
 
-function play(connection, guild, song) {
+function play(connection, player, guild, song) {
     const serverQueue = queue.get(guild.id);
-    // console.log(song)
-    // if (!song) {
-    //     connection.destroy();
-    //     queue.delete(guild.id);
-    //     return;
-    // }
+    if (!song) {
+        connection.destroy();
+        player.stop();
+        queue.delete(guild.id);
+        return;
+    }
+    player.play(song);
+
     // const dispatcher = serverQueue.connection
     //     .play(song)
     //     .on("finish", () => {
