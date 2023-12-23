@@ -7,7 +7,7 @@ const {
 const fs = require('fs');
 const path = require('path')
 
-const {joinVoiceChannel, createAudioPlayer, createAudioResource} = require("@discordjs/voice");
+const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus} = require("@discordjs/voice");
 
 const client = new Discord.Client({
     intents: [
@@ -52,39 +52,20 @@ client.on('messageCreate', message => {
         playTracks(message, tracksPath.jolly, serverQueue);
     }
     else if (message.content.startsWith(`${prefix}pause`)) {
+        pauseTracks(message.guildId);
         return;
     }
     else if (message.content.startsWith(`${prefix}skip`)) {
         return;
     }
     else if (message.content.startsWith(`${prefix}stop`)) {
+        stopTracks(message.guildId);
         return;
     }
     else {
         message.channel.send('Enter a valid command');
     }
 });
-
-function readTrack (path) {
-    fs.readFile(path, {encoding: 'base64'}, (err, data) => {
-        if (err) {
-            console.log(`An error has occurred: (${err})`);
-        }
-        else {
-            return data;
-        }
-    });
-}
-
-function processData (data) {
-    const raw = Buffer.from(data, 'base64');
-    const binaryData = new Uint8Array(new ArrayBuffer(raw.length));
-    for (let i = 0; i < raw.length; i++) {
-        binaryData[i] = raw.charCodeAt(i);
-    }
-    const blob = new Blob([binaryData], {'type': 'video/mp4'});
-    return blob
-}
 
 async function playTracks (message, trackPath, serverQueue) {
     const voiceChannel = message.member.voice.channel;
@@ -106,7 +87,6 @@ async function playTracks (message, trackPath, serverQueue) {
         playing: true,
     };    
     
-    
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
         return message.channel.send("The bot needs permissions to connect and speak in voice channel");
@@ -118,6 +98,7 @@ async function playTracks (message, trackPath, serverQueue) {
         adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
     
+    // if the queue contract does not exist for the server
     if (!serverQueue) {
         for (i = 0; i < tracks.length; i++) {
             const trackName = tracks[i]
@@ -125,13 +106,13 @@ async function playTracks (message, trackPath, serverQueue) {
             const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
             queueContract.songs.push(trackResource);
         }
+        queueContract.connection = connection;
+        queueContract.player = player;
     }
 
     queue.set(message.guildId, queueContract);
     
     try {
-        queueContract.connection = connection;
-        queueContract.player = player;
         connection.subscribe(player);
         play(connection, player, message.guild, queueContract.songs[0]);
     } catch (err) {
@@ -150,16 +131,26 @@ function play(connection, player, guild, song) {
         queue.delete(guild.id);
         return;
     }
+    player.on(AudioPlayerStatus.Idle, () => {
+        serverQueue.songs.shift();
+        play(connection, player, guild, serverQueue.songs[0]); 
+    });
     player.play(song);
+}
 
-    // const dispatcher = serverQueue.connection
-    //     .play(song)
-    //     .on("finish", () => {
-    //         serverQueue.songs.shift();
-    //         play(guild, serverQueue.songs[0]);
-    //     })
-    //     .on("error", error => console.error(error));
-    // dispatcher.setVolumneLogarithmic(serverQueue.volume / 5);
+function pauseTracks(guildId) {
+    const serverQueue = queue.get(guildId);
+    if (serverQueue.playing) {
+        serverQueue.player.pause();
+    }
+}
+
+function stopTracks(guildId) {
+    const serverQueue = queue.get(guildId);
+    if (serverQueue.playing) {
+        serverQueue.player.stop();
+        serverQueue.connection.destroy();
+    }
 }
 
 client.login(token);
