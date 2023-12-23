@@ -32,6 +32,10 @@ client.once('disconnect', () => {
 
 const queue = new Map();
 
+function getRandomInt(max) {
+    return Math.floor(Math.random() * max);
+}
+
 client.on('messageCreate', message => {
     const serverQueue = queue.get(message.guildId);
 
@@ -82,7 +86,7 @@ async function playTracks (message, trackPath, serverQueue) {
         voiceChannel: voiceChannel,
         connection: null,
         player: null, 
-        songs: [],
+        tracks: [],
         volume: 5,
         playing: true,
     };    
@@ -104,7 +108,7 @@ async function playTracks (message, trackPath, serverQueue) {
             const trackName = tracks[i]
             const fullTrackPath = path.join(trackPath, trackName);
             const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
-            queueContract.songs.push(trackResource);
+            queueContract.tracks.push(trackResource);
         }
         queueContract.connection = connection;
         queueContract.player = player;
@@ -114,7 +118,9 @@ async function playTracks (message, trackPath, serverQueue) {
     
     try {
         connection.subscribe(player);
-        play(connection, player, message.guild, queueContract.songs[0]);
+        const index = getRandomInt(queueContract.tracks.length);
+        play(connection, player, message.guild, queueContract.tracks[index], index);
+        message.channel.send(`There are ${queueContract.tracks.length} tracks in the queue`);
     } catch (err) {
         console.log(err);
         queue.delete(message.guild.id);
@@ -123,7 +129,7 @@ async function playTracks (message, trackPath, serverQueue) {
     return;
 }
 
-function play(connection, player, guild, song) {
+function play(connection, player, guild, song, index) {
     const serverQueue = queue.get(guild.id);
     if (!song) {
         connection.destroy();
@@ -132,8 +138,8 @@ function play(connection, player, guild, song) {
         return;
     }
     player.on(AudioPlayerStatus.Idle, () => {
-        serverQueue.songs.shift();
-        play(connection, player, guild, serverQueue.songs[0]); 
+        const newIndex = index + getRandomInt(serverQueue.tracks.length);
+        play(connection, player, guild, serverQueue.tracks[newIndex], newIndex); 
     });
     player.play(song);
 }
