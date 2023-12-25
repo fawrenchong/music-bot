@@ -18,6 +18,12 @@ const client = new Discord.Client({
     ]
 });
 
+const moods = {
+    ambient: 'ambient', 
+    jolly: 'jolly', 
+    combat: 'combat'
+}
+
 client.once('ready', () => {
     console.log('Ready');
 });
@@ -44,16 +50,16 @@ client.on('messageCreate', message => {
     if (message.content.startsWith(`${prefix}ping`)) {
         console.log('Ping');
     }
-    else if (message.content.startsWith(`${prefix}play-normal`)) {
-        playTracks(message, tracksPath.normal, serverQueue);
+    else if (message.content.startsWith(`${prefix}play-ambient`)) {
+        playTracks(message, tracksPath.ambient, moods.ambient, serverQueue);
         return;
     }
     else if (message.content.startsWith(`${prefix}play-combat`)) {
-        playTracks(message, tracksPath.combat, serverQueue);
+        playTracks(message, tracksPath.combat, moods.combat, serverQueue);
         return;
     }
     else if (message.content.startsWith(`${prefix}play-jolly`)) {
-        playTracks(message, tracksPath.jolly, serverQueue);
+        playTracks(message, tracksPath.jolly, moods.jolly, serverQueue);
     }
     else if (message.content.startsWith(`${prefix}pause`)) {
         pauseTracks(message.guildId);
@@ -71,89 +77,104 @@ client.on('messageCreate', message => {
     }
 });
 
-async function playTracks (message, trackPath, serverQueue) {
+function getTracks(tracksPath) {
+    const trackNames = fs.readdirSync(tracksPath);
+    const tracks = []
+    // Creates audio resources for the player from the tracks in the directory
+    for (i = 0; i < trackNames.length; i++) {
+        const trackName = trackNames[i]
+        const fullTrackPath = path.join(tracksPath, trackName);
+        const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
+        tracks.push(trackResource);
+    }
+    return tracks;
+}
+
+async function playTracks (message, tracksPath, mood, serverQueue) {
     const voiceChannel = message.member.voice.channel;
     
     if (!voiceChannel) {
         return message.channel.send('The user making this command should be in a voice channel.');
     }
     
-    const player = createAudioPlayer();
-    
-    const tracks = fs.readdirSync(trackPath);
-    const queueContract = {
-        textChannel: message.channel,
-        voiceChannel: voiceChannel,
-        connection: null,
-        player: null, 
-        tracks: [],
-        volume: 5,
-        playing: true,
-    };    
+    const tracks = getTracks(tracksPath)
     
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
         return message.channel.send("The bot needs permissions to connect and speak in voice channel");
     }
-
+    
+    const player = createAudioPlayer();
     const connection = joinVoiceChannel({
         channelId: voiceChannel.id, 
         guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
-    
-    // if the queue contract does not exist for the server
+    // if the queue contract does not exist for the server, 
+    // create a player, join the voice channel and create a new queue contract. 
     if (!serverQueue) {
-        for (i = 0; i < tracks.length; i++) {
-            const trackName = tracks[i]
-            const fullTrackPath = path.join(trackPath, trackName);
-            const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
-            queueContract.tracks.push(trackResource);
-        }
-        queueContract.connection = connection;
-        queueContract.player = player;
-    }
-
-    queue.set(message.guildId, queueContract);
-    
-    try {
+        const queueContract = {
+            textChannel: message.channel,
+            voiceChannel: voiceChannel,
+            connection: connection,
+            player: player, 
+            tracks: tracks,
+            index: 0,
+            mood: mood,
+            volume: 5,
+            playing: true,
+        };    
+        serverQueue = queueContract;
+        queue.set(message.guildId, serverQueue);
         connection.subscribe(player);
-        const index = getRandomInt(queueContract.tracks.length);
-        play(connection, player, message.guild, queueContract.tracks[index], index);
-        message.channel.send(`There are ${queueContract.tracks.length} tracks in the queue`);
+        queueContract.index = getRandomInt(serverQueue.tracks.length);
+    }
+    // else if (serverQueue.mood != mood) {
+        //     pauseTracks(serverQueue.guild.id);
+        //     queueContract.tracks = tracks;
+        //     const index = getRandomInt(serverQueue.tracks.length);
+        //     play(serverQueue.connection, serverQueue.player, serverQueue.voiceChannel.guild, serverQueue.tracks[index], index);
+        // }
+    try {
+        play(serverQueue.connection, serverQueue.player, message.guild, serverQueue.tracks[serverQueue.index]);
+        message.channel.send(`There are ${serverQueue.tracks.length} tracks in the queue`);
     } catch (err) {
-        console.log(err);
         queue.delete(message.guild.id);
         return message.channel.send(err);
     }
+
     return;
 }
 
-function play(connection, player, guild, song, index) {
+// Plays a single track
+function play(connection, player, guild, track) {
     const serverQueue = queue.get(guild.id);
-    if (!song) {
+    if (!track) {
         connection.destroy();
         player.stop();
         queue.delete(guild.id);
         return;
     }
     player.on(AudioPlayerStatus.Idle, () => {
-        const newIndex = index + getRandomInt(serverQueue.tracks.length);
-        play(connection, player, guild, serverQueue.tracks[newIndex], newIndex); 
+        serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
+        serverQueue.index = getRandomInt(serverQueue.tracks.length);
+        play(connection, player, guild, serverQueue.tracks[serverQueue.index]); 
     });
-    player.play(song);
+    player.play(track);
+    serverQueue.playing = serverQueue.playing ? true : false;
 }
 
 function pauseTracks(guildId) {
     const serverQueue = queue.get(guildId);
-    if (serverQueue.playing) {
+    if (serverQueue && serverQueue.playing) {
         serverQueue.player.pause();
+        serverQueue.playing = false;
     }
 }
 
 function stopTracks(guildId) {
     const serverQueue = queue.get(guildId);
-    if (serverQueue.playing) {
+    if (serverQueue && serverQueue.playing) {
         serverQueue.player.stop();
         serverQueue.connection.destroy();
     }
