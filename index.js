@@ -98,6 +98,7 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
     }
     
     const tracks = getTracks(tracksPath)
+    console.log(tracks);
     
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
@@ -119,6 +120,7 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
             connection: connection,
             serverId: voiceChannel.guild.id,
             player: player, 
+            listenerSet: false,
             tracks: tracks,
             index: 0,
             mood: mood,
@@ -151,17 +153,21 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
 // Plays a single track
 function play(connection, player, guild, track) {
     const serverQueue = queue.get(guild.id);
+    console.log(`There are ${serverQueue.tracks.length} tracks left in the queue`);
     if (!track) {
         connection.destroy();
         player.stop();
         queue.delete(guild.id);
         return;
     }
-    player.on(AudioPlayerStatus.Idle, () => {
-        serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
-        serverQueue.index = getRandomInt(serverQueue.tracks.length);
-        play(connection, player, guild, serverQueue.tracks[serverQueue.index]); 
-    });
+    if (!serverQueue.listenerSet) {
+        player.on(AudioPlayerStatus.Idle, () => {
+            serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
+            serverQueue.index = getRandomInt(serverQueue.tracks.length);
+            play(connection, player, guild, serverQueue.tracks[serverQueue.index]); 
+        });
+        serverQueue.listenerSet = true;
+    }
     player.play(track);
     serverQueue.playing = true;
 }
