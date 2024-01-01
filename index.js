@@ -111,12 +111,13 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
         adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
     // if the queue contract does not exist for the server, 
-    // create a player, join the voice channel and create a new queue contract. 
+    // makes a new queue contract as a server queue, and maps the server ID to it. 
     if (!serverQueue) {
         const queueContract = {
             textChannel: message.channel,
             voiceChannel: voiceChannel,
             connection: connection,
+            serverId: voiceChannel.guild.id,
             player: player, 
             tracks: tracks,
             index: 0,
@@ -129,12 +130,13 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
         connection.subscribe(player);
         queueContract.index = getRandomInt(serverQueue.tracks.length);
     }
-    // else if (serverQueue.mood != mood) {
-        //     pauseTracks(serverQueue.guild.id);
-        //     queueContract.tracks = tracks;
-        //     const index = getRandomInt(serverQueue.tracks.length);
-        //     play(serverQueue.connection, serverQueue.player, serverQueue.voiceChannel.guild, serverQueue.tracks[index], index);
-        // }
+    else if (serverQueue.mood != mood) {
+        pauseTracks(serverQueue.serverId);
+        serverQueue.tracks = tracks;
+        const index = getRandomInt(serverQueue.tracks.length);
+        serverQueue.index = index;
+        serverQueue.mood = mood;
+    }
     try {
         play(serverQueue.connection, serverQueue.player, message.guild, serverQueue.tracks[serverQueue.index]);
         message.channel.send(`There are ${serverQueue.tracks.length} tracks in the queue`);
@@ -161,7 +163,7 @@ function play(connection, player, guild, track) {
         play(connection, player, guild, serverQueue.tracks[serverQueue.index]); 
     });
     player.play(track);
-    serverQueue.playing = serverQueue.playing ? true : false;
+    serverQueue.playing = true;
 }
 
 function pauseTracks(guildId) {
