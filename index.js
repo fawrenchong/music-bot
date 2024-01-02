@@ -65,6 +65,10 @@ client.on('messageCreate', message => {
         pauseTracks(message.guildId);
         return;
     }
+    else if (messsage.content.startsWith(`${prefix}unpause`)) {
+        unpauseTracks(message.guildId);
+        return;
+    }
     else if (message.content.startsWith(`${prefix}skip`)) {
         return;
     }
@@ -204,6 +208,16 @@ function pauseTracks(guildId) {
         serverQueue.player.pause();
         serverQueue.playing = false;
     }
+    return;
+}
+
+function unpauseTracks(guildId) {
+    const serverQueue = queue.get(guildId);
+    if (serverQueue && !serverQueue.playing) {
+        serverQueue.player.unpause();
+        serverQueue.playing = true;
+    }
+    return;
 }
 
 function stopTracks(guildId) {
@@ -212,6 +226,7 @@ function stopTracks(guildId) {
         serverQueue.player.stop();
         serverQueue.connection.destroy();
     }
+    return;
 }
 
 client.login(token);
