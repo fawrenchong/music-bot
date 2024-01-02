@@ -65,7 +65,7 @@ client.on('messageCreate', message => {
         pauseTracks(message.guildId);
         return;
     }
-    else if (messsage.content.startsWith(`${prefix}unpause`)) {
+    else if (message.content.startsWith(`${prefix}unpause`)) {
         unpauseTracks(message.guildId);
         return;
     }
