@@ -98,7 +98,6 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
     }
     
     const tracks = getTracks(tracksPath)
-    console.log(tracks);
     
     const permissions = voiceChannel.permissionsFor(message.client.user);
     if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
@@ -140,36 +139,59 @@ async function playTracks (message, tracksPath, mood, serverQueue) {
         serverQueue.mood = mood;
     }
     try {
-        play(serverQueue.connection, serverQueue.player, message.guild, serverQueue.tracks[serverQueue.index]);
+        play(serverQueue.connection, serverQueue.player, message.guild.id, serverQueue.tracks[serverQueue.index]);
         message.channel.send(`There are ${serverQueue.tracks.length} tracks in the queue`);
     } catch (err) {
         queue.delete(message.guild.id);
         return message.channel.send(err);
     }
-
     return;
 }
 
 // Plays a single track
-function play(connection, player, guild, track) {
-    const serverQueue = queue.get(guild.id);
+function play(connection, player, guildId, track) {
+    const serverQueue = queue.get(guildId);
     console.log(`There are ${serverQueue.tracks.length} tracks left in the queue`);
+
     if (!track) {
         connection.destroy();
         player.stop();
-        queue.delete(guild.id);
+        queue.delete(guildId);
         return;
     }
     if (!serverQueue.listenerSet) {
         player.on(AudioPlayerStatus.Idle, () => {
-            serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
+            if (serverQueue.tracks.length == 0) {
+                repopulateQueue(serverQueue);
+            }
+            else {
+                serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
+            }
             serverQueue.index = getRandomInt(serverQueue.tracks.length);
-            play(connection, player, guild, serverQueue.tracks[serverQueue.index]); 
+            play(connection, player, guildId, serverQueue.tracks[serverQueue.index]); 
         });
         serverQueue.listenerSet = true;
     }
     player.play(track);
     serverQueue.playing = true;
+}
+
+function repopulateQueue(serverQueue) {
+    var tracks;
+    if (!serverQueue) {
+        return;
+    }
+    else if (serverQueue.mood == moods.ambient) {
+        tracks = getTracks(tracksPath.ambient);
+    }
+    else if (serverQueue.mood == moods.combat) {
+        tracks = getTracks(tracksPath.combat);
+    }
+    else if (serverQueue.mood == moods.jolly) {
+        tracks = getTracks(tracksPath.jolly);
+    }
+    serverQueue.tracks = tracks;
+    return;
 }
 
 function pauseTracks(guildId) {
