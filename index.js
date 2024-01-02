@@ -84,7 +84,11 @@ function getTracks(tracksPath) {
     for (i = 0; i < trackNames.length; i++) {
         const trackName = trackNames[i]
         const fullTrackPath = path.join(tracksPath, trackName);
-        const trackResource = createAudioResource(fullTrackPath); // requires something called ffmpeg and aconv
+        const trackResource = createAudioResource(fullTrackPath, {
+            metadata: {
+                title: trackName
+            }
+        }); // requires something called ffmpeg and aconv
         tracks.push(trackResource);
     }
     return tracks;
