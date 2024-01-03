@@ -162,6 +162,7 @@ function play(connection, player, guildId, track) {
     console.log(`There are ${serverQueue.tracks.length} tracks left in the queue`);
 
     if (!track) {
+        console.log('Empty track discovered, destroying connection');
         connection.destroy();
         player.stop();
         queue.delete(guildId);
@@ -169,12 +170,17 @@ function play(connection, player, guildId, track) {
     }
     if (!serverQueue.listenerSet) {
         player.on(AudioPlayerStatus.Idle, () => {
-            if (serverQueue.tracks.length == 0) {
-                repopulateQueue(serverQueue);
-            }
-            else {
+
+            if (serverQueue.tracks.length > 0) {
                 serverQueue.tracks.splice(serverQueue.index, 1); // finished audio resources cannot be replayed, so they are removed. 
             }
+            // Cannot be an 'else' statement, needs to be a check after the potentially last track has been removed.
+            if (serverQueue.tracks.length == 0) {
+                const newTracks = repopulateQueue(serverQueue);
+                serverQueue.tracks = newTracks;
+                console.log(`Repopulated queue, there are ${serverQueue.tracks.length} tracks in the queue`);
+            }
+
             serverQueue.index = getRandomInt(serverQueue.tracks.length);
             play(connection, player, guildId, serverQueue.tracks[serverQueue.index]); 
         });
@@ -198,8 +204,7 @@ function repopulateQueue(serverQueue) {
     else if (serverQueue.mood == moods.jolly) {
         tracks = getTracks(tracksPath.jolly);
     }
-    serverQueue.tracks = tracks;
-    return;
+    return tracks;
 }
 
 function pauseTracks(guildId) {
