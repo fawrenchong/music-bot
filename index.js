@@ -18,6 +18,26 @@ const client = new Discord.Client({
     ]
 });
 
+client.commands = new Discord.Collection();
+
+const foldersPath = path.join(__dirname, 'commands');
+const commandFolders = fs.readdirSync(foldersPath);
+
+for (const folder of commandFolders) {
+    const commandsPath = path.join(foldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js')); // What does .filter() do?
+    for (const file of commandFiles) {
+        const filePath = path.join(commandsPath, file);
+        const command = require(filePath);
+        // sets a new item in the collection. The key is the command name, and the value is the exported module. 
+        if ('data' in command && 'execute' in command) {
+            client.commands.set(command.data.name, command);
+        } else {
+            console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
+        }
+    }
+}
+
 const moods = {
     ambient: 'ambient', 
     jolly: 'jolly', 
@@ -35,6 +55,12 @@ client.once('reconnecting', () => {
 client.once('disconnect', () => {
     console.log('Disconnected');
 });
+
+// respond to interactions. Not all interactions are slash commands, so this functiion only handles slash commands. 
+client.on(Discord.Events.InteractionCreate, interaction => {
+    if (!interaction.isChatInputCommand()) return;
+    console.log(interaction);
+})
 
 const queue = new Map();
 
