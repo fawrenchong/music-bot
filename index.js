@@ -281,3 +281,7 @@ function stopTracks(guildId) {
 }
 
 client.login(token);
+
+module.exports = {
+    queue: queue
+}
