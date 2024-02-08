@@ -9,7 +9,7 @@ function unpauseTracks(guildId) {
         return 'Paused tracks.';
     }
     else {
-        return 'Tracks already not playing, or server queue does not exist.';
+        return 'Tracks already not playing, or server queue does not exist';
     }
 }
 

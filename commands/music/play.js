@@ -103,7 +103,7 @@ module.exports = {
         const voiceChannel = interaction.member.voice.channel;
 
         if (!voiceChannel) {
-            await interaction.reply('The user making this command should be in a voice channel.');
+            await interaction.reply('The user making this command should be in a voice channel');
         }
         
         var tracks;

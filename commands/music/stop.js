@@ -6,10 +6,10 @@ function stopTracks(guildId) {
     if (serverQueue && serverQueue.playing) {
         serverQueue.player.stop();
         serverQueue.connection.destroy();
-        return 'Stopped playing music.'
+        return 'Stopped playing music'
     }
     else {
-        return 'Tracks not playing, or server queue does not exist.';
+        return 'Tracks not playing, or server queue does not exist';
     }
 }
 
