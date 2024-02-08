@@ -2,6 +2,12 @@ const { SlashCommandBuilder } = require('discord.js');
 const { queue } = require('./index.js');
 const { tracksPath } = require('./config.json');
 
+const moods = {
+    ambient: 'ambient', 
+    jolly: 'jolly', 
+    combat: 'combat'
+}
+
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
 }
@@ -96,7 +102,16 @@ module.exports = {
             await interaction.reply('The user making this command should be in a voice channel.');
         }
         
-        const tracks = getTracks(tracksPath)
+        var tracks;
+        if (category == moods.ambient) {
+            tracks = getTracks(tracksPath.ambient);
+        }
+        else if (category == moods.combat) {
+            tracks = getTracks(tracksPath.combat);
+        }
+        else if (category == moods.jolly) {
+            tracks = getTracks(tracksPath.jolly);
+        }
         
         const permissions = voiceChannel.permissionsFor(interaction.user);
         if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
