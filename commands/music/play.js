@@ -1,12 +1,16 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { queue } = require('./index.js');
-const { tracksPath } = require('./config.json');
+const { tracksPath } = require('../../config.json');
+const fs = require('fs');
+const path = require('path')
+const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus} = require("@discordjs/voice");
 
 const moods = {
     ambient: 'ambient', 
     jolly: 'jolly', 
     combat: 'combat'
 }
+
+const queue = new Map();
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
@@ -84,17 +88,17 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('play')
         .setDescription('play a track')
-        .addStringOption(option => {
+        .addStringOption(option => 
             option.setName('category')
-                .setDescription('The track category')
+                .setDescription('Track category')
                 .setRequired(true)
                 .addChoices(
                     { name: 'Ambient', value: 'ambient' },
                     { name: 'Combat', value: 'combat' },
                     { name: 'Jolly', value: 'jolly' }
-                )
-        }), 
+        )),
     async execute(interaction) {
+        var serverQueue = queue.get(interaction.guild_id);
         const category = interaction.options.getString('category');
         const voiceChannel = interaction.member.voice.channel;
 
@@ -153,7 +157,8 @@ module.exports = {
             serverQueue.category = category;
         }
         try {
-            play(serverQueue.connection, serverQueue.player, message.guild.id, serverQueue.tracks[serverQueue.index]);
+            play(serverQueue.connection, serverQueue.player, interaction.guild_id, serverQueue.tracks[serverQueue.index]);
+            await interaction.reply(`There are ${serverQueue.tracks.length} tracks in the queue`);
         } catch (err) {
             queue.delete(interaction.guild_id);
             return message.channel.send(err);
