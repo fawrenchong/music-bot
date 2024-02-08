@@ -3,14 +3,14 @@ const { tracksPath } = require('../../config.json');
 const fs = require('fs');
 const path = require('path')
 const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus} = require("@discordjs/voice");
+const { queue } = require('../../queue.js')
+const { pauseTracks } = require('./pause.js');
 
 const moods = {
     ambient: 'ambient', 
     jolly: 'jolly', 
     combat: 'combat'
 }
-
-const queue = new Map();
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
