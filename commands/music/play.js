@@ -6,7 +6,7 @@ const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStat
 const { queue } = require('../../queue.js')
 const { pauseTracks } = require('./pause.js');
 
-const moods = {
+const categories = {
     ambient: 'ambient', 
     jolly: 'jolly', 
     combat: 'combat'
@@ -38,13 +38,13 @@ function repopulateQueue(serverQueue) {
     if (!serverQueue) {
         return;
     }
-    else if (serverQueue.mood == moods.ambient) {
+    else if (serverQueue.category == categories.ambient) {
         tracks = getTracks(tracksPath.ambient);
     }
-    else if (serverQueue.mood == moods.combat) {
+    else if (serverQueue.category == categories.combat) {
         tracks = getTracks(tracksPath.combat);
     }
-    else if (serverQueue.mood == moods.jolly) {
+    else if (serverQueue.category == categories.jolly) {
         tracks = getTracks(tracksPath.jolly);
     }
     return tracks;
@@ -52,7 +52,7 @@ function repopulateQueue(serverQueue) {
 
 // Plays a single track
 function play(connection, player, guildId, track) {
-    const serverQueue = queue.get(guildId);
+    var serverQueue = queue.get(guildId);
     console.log(`There are ${serverQueue.tracks.length} tracks left in the queue`);
 
     if (!track) {
@@ -71,7 +71,9 @@ function play(connection, player, guildId, track) {
             // Cannot be an 'else' statement, needs to be a check after the potentially last track has been removed.
             if (serverQueue.tracks.length == 0) {
                 const newTracks = repopulateQueue(serverQueue);
+                console.log(newTracks);
                 serverQueue.tracks = newTracks;
+                console.log(serverQueue);
                 console.log(`Repopulated queue, there are ${serverQueue.tracks.length} tracks in the queue`);
             }
 
@@ -107,13 +109,13 @@ module.exports = {
         }
         
         var tracks;
-        if (category == moods.ambient) {
+        if (category == categories.ambient) {
             tracks = getTracks(tracksPath.ambient);
         }
-        else if (category == moods.combat) {
+        else if (category == categories.combat) {
             tracks = getTracks(tracksPath.combat);
         }
-        else if (category == moods.jolly) {
+        else if (category == categories.jolly) {
             tracks = getTracks(tracksPath.jolly);
         }
         
