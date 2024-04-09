@@ -6,12 +6,6 @@ const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStat
 const { queue } = require('../../queue.js')
 const { pauseTracks } = require('./pause.js');
 
-const categories = {
-    ambient: 'ambient', 
-    jolly: 'jolly', 
-    combat: 'combat'
-}
-
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
 }
@@ -38,14 +32,8 @@ function repopulateQueue(serverQueue) {
     if (!serverQueue) {
         return;
     }
-    else if (serverQueue.category == categories.ambient) {
-        tracks = getTracks(tracksPath.ambient);
-    }
-    else if (serverQueue.category == categories.combat) {
-        tracks = getTracks(tracksPath.combat);
-    }
-    else if (serverQueue.category == categories.jolly) {
-        tracks = getTracks(tracksPath.jolly);
+    else {
+        tracks = getTracks(tracksPath[serverQueue.category])
     }
     return tracks;
 }
@@ -97,7 +85,7 @@ module.exports = {
                 .addChoices(
                     { name: 'Ambient', value: 'ambient' },
                     { name: 'Combat', value: 'combat' },
-                    { name: 'Jolly', value: 'jolly' }
+                    { name: 'Jolly', value: 'jolly' },
         )),
     async execute(interaction) {
         var serverQueue = queue.get(interaction.guild_id);
@@ -108,16 +96,7 @@ module.exports = {
             await interaction.reply('The user making this command should be in a voice channel');
         }
         
-        var tracks;
-        if (category == categories.ambient) {
-            tracks = getTracks(tracksPath.ambient);
-        }
-        else if (category == categories.combat) {
-            tracks = getTracks(tracksPath.combat);
-        }
-        else if (category == categories.jolly) {
-            tracks = getTracks(tracksPath.jolly);
-        }
+        var tracks = getTracks(tracksPath[category]);
         
         const permissions = voiceChannel.permissionsFor(interaction.user);
         if (!permissions.has("0x100000") || !permissions.has("0x200000")) { // permissions for CONNECT and SPEAK
