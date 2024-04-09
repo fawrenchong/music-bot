@@ -86,6 +86,7 @@ module.exports = {
                     { name: 'Ambient', value: 'ambient' },
                     { name: 'Combat', value: 'combat' },
                     { name: 'Jolly', value: 'jolly' },
+                    { name: 'Boss', value: 'boss'}
         )),
     async execute(interaction) {
         var serverQueue = queue.get(interaction.guild_id);
