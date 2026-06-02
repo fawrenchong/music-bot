@@ -18,7 +18,7 @@ module.exports = {
         .setName('stop')
         .setDescription('Stop playing tracks and destroy the bot\'s current connection'),
     async execute(interaction) {
-        const response = await stopTracks(interaction.guild_id);
+        const response = await stopTracks(interaction.guildId);
         await interaction.reply(response);
     },
     stopTracks,

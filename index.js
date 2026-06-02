@@ -69,7 +69,7 @@ client.on(Discord.Events.InteractionCreate, async interaction => {
         }
     }
 
-    console.log(interaction);
+    // console.log(interaction);
 });
 
 client.login(token);

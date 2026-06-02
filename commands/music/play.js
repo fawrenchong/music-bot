@@ -3,8 +3,10 @@ const { tracksPath } = require('../../config.json');
 const fs = require('fs');
 const path = require('path')
 const {joinVoiceChannel, createAudioPlayer, createAudioResource, AudioPlayerStatus} = require("@discordjs/voice");
-const { queue } = require('../../queue.js')
+const { queue } = require('../../managers/queueManager.js')
 const { pauseTracks } = require('./pause.js');
+const { getPlayer } = require('../../managers/playerManager.js');
+const { getConnection } = require('../../managers/connectionManager.js');
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
@@ -14,7 +16,7 @@ function getTracks(tracksPath) {
     const trackNames = fs.readdirSync(tracksPath);
     const tracks = []
     // Creates audio resources for the player from the tracks in the directory
-    for (i = 0; i < trackNames.length; i++) {
+    for (let i = 0; i < trackNames.length; i++){
         const trackName = trackNames[i]
         const fullTrackPath = path.join(tracksPath, trackName);
         const trackResource = createAudioResource(fullTrackPath, {
@@ -59,9 +61,7 @@ function play(connection, player, guildId, track) {
             // Cannot be an 'else' statement, needs to be a check after the potentially last track has been removed.
             if (serverQueue.tracks.length == 0) {
                 const newTracks = repopulateQueue(serverQueue);
-                console.log(newTracks);
                 serverQueue.tracks = newTracks;
-                console.log(serverQueue);
                 console.log(`Repopulated queue, there are ${serverQueue.tracks.length} tracks in the queue`);
             }
 
@@ -70,6 +70,7 @@ function play(connection, player, guildId, track) {
         });
         serverQueue.listenerSet = true;
     }
+    console.log(`Playing track ${track.metadata.title}`);
     player.play(track);
     serverQueue.playing = true;
 }
@@ -93,7 +94,7 @@ module.exports = {
                     { name: 'Royal', value: 'royal' }
         )),
     async execute(interaction) {
-        var serverQueue = queue.get(interaction.guild_id);
+        var serverQueue = queue.get(interaction.guildId);
         const category = interaction.options.getString('category');
         const voiceChannel = interaction.member.voice.channel;
 
@@ -108,32 +109,26 @@ module.exports = {
             await interaction.reply('The bot needs permissions to connect and speak in voice channel');
         }
         
-        const player = createAudioPlayer();
-        const connection = joinVoiceChannel({
-            channelId: voiceChannel.id, 
-            guildId: voiceChannel.guild.id,
-            adapterCreator: voiceChannel.guild.voiceAdapterCreator
-        });
+        const player = getPlayer(interaction.guildId);
+        
+        const connection = getConnection(interaction.guildId, voiceChannel);
+
         // if the queue contract does not exist for the server, 
         // makes a new queue contract as a server queue, and maps the server ID to it. 
         if (!serverQueue) {
-            const queueContract = {
+             serverQueue = createQueue(interaction.guildId, {
                 textChannel: interaction.channel,
                 voiceChannel: voiceChannel,
                 connection: connection,
-                serverId: voiceChannel.guild.id,
-                player: player, 
-                listenerSet: false,
+                player: player,
                 tracks: tracks,
-                index: 0,
+                index: getRandomInt(tracks.length),
                 category: category,
-                volume: 5,
-                playing: true,
-            };    
-            serverQueue = queueContract;
-            queue.set(interaction.guild_id, serverQueue);
+                volume: 5
+            });
+            
+            console.log(`Added queue contract for server ${interaction.guildId}`);
             connection.subscribe(player);
-            queueContract.index = getRandomInt(serverQueue.tracks.length);
         }
         else if (serverQueue.category != category) {
             pauseTracks(serverQueue.serverId);
@@ -143,11 +138,11 @@ module.exports = {
             serverQueue.category = category;
         }
         try {
-            play(serverQueue.connection, serverQueue.player, interaction.guild_id, serverQueue.tracks[serverQueue.index]);
+            play(serverQueue.connection, serverQueue.player, interaction.guildId, serverQueue.tracks[serverQueue.index]);
             await interaction.reply(`There are ${serverQueue.tracks.length} tracks in the queue`);
         } catch (err) {
-            queue.delete(interaction.guild_id);
-            return message.channel.send(err);
+            queue.delete(interaction.guildId);
+            return interaction.channel.send(err);
         }
         return;
     }

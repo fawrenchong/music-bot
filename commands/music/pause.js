@@ -1,5 +1,5 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { queue } = require('../../queue.js');
+const { queue } = require('../../managers/queueManager.js');
 
 function pauseTracks(guildId) {
     const serverQueue = queue.get(guildId);
