@@ -1,12 +1,12 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { queue } = require('../../queue.js');
+const { getQueue } = require('../../managers/queueManager.js');
 
 function unpauseTracks(guildId) {
-    const serverQueue = queue.get(guildId);
+    const serverQueue = getQueue(guildId);
     if (serverQueue && !serverQueue.playing) {
         serverQueue.player.unpause();
         serverQueue.playing = true;
-        return 'Paused tracks.';
+        return 'Unpaused tracks.';
     }
     else {
         return 'Tracks already not playing, or server queue does not exist';

@@ -1,8 +1,8 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { queue } = require('../../managers/queueManager.js');
+const { getQueue } = require('../../managers/queueManager.js');
 
 function pauseTracks(guildId) {
-    const serverQueue = queue.get(guildId);
+    const serverQueue = getQueue(guildId);
     if (serverQueue && serverQueue.playing) {
         serverQueue.player.pause();
         serverQueue.playing = false;

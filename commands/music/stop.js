@@ -1,11 +1,12 @@
 const { SlashCommandBuilder } = require('discord.js');
-const { queue } = require('../../queue.js');
+const { getQueue, deleteQueue } = require('../../managers/queueManager.js');
 
 function stopTracks(guildId) {
-    const serverQueue = queue.get(guildId);
+    const serverQueue = getQueue(guildId);
     if (serverQueue && serverQueue.playing) {
         serverQueue.player.stop();
         serverQueue.connection.destroy();
+        deleteQueue(guildId);
         return 'Stopped playing music'
     }
     else {

@@ -7,6 +7,7 @@ const { queue } = require('../../managers/queueManager.js')
 const { pauseTracks } = require('./pause.js');
 const { getPlayer } = require('../../managers/playerManager.js');
 const { getConnection } = require('../../managers/connectionManager.js');
+const { createQueue, getQueue } = require('../../managers/queueManager.js');
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
@@ -41,15 +42,17 @@ function repopulateQueue(serverQueue) {
 }
 
 // Plays a single track
-function play(connection, player, guildId, track) {
-    var serverQueue = queue.get(guildId);
+function play(guildId, track) {
+    var serverQueue = getQueue(guildId);
+    const connection = serverQueue.connection;
+    const player = serverQueue.player;
     console.log(`There are ${serverQueue.tracks.length} tracks left in the queue`);
 
     if (!track) {
         console.log('Empty track discovered, destroying connection');
         connection.destroy();
         player.stop();
-        queue.delete(guildId);
+        deleteQueue(guildId);
         return;
     }
     if (!serverQueue.listenerSet) {
@@ -66,7 +69,7 @@ function play(connection, player, guildId, track) {
             }
 
             serverQueue.index = getRandomInt(serverQueue.tracks.length);
-            play(connection, player, guildId, serverQueue.tracks[serverQueue.index]); 
+            play(serverQueue.serverId, serverQueue.tracks[serverQueue.index]); 
         });
         serverQueue.listenerSet = true;
     }
@@ -94,7 +97,7 @@ module.exports = {
                     { name: 'Royal', value: 'royal' }
         )),
     async execute(interaction) {
-        var serverQueue = queue.get(interaction.guildId);
+        var serverQueue = getQueue(interaction.guildId);
         const category = interaction.options.getString('category');
         const voiceChannel = interaction.member.voice.channel;
 
@@ -110,7 +113,6 @@ module.exports = {
         }
         
         const player = getPlayer(interaction.guildId);
-        
         const connection = getConnection(interaction.guildId, voiceChannel);
 
         // if the queue contract does not exist for the server, 
@@ -130,6 +132,8 @@ module.exports = {
             console.log(`Added queue contract for server ${interaction.guildId}`);
             connection.subscribe(player);
         }
+        // if the queue contract already exists, but the category of tracks requested is different from the category of tracks in the existing queue,
+        // pauses the existing queue, replaces the existing queue's tracks with tracks from the new category, and resets the track index to a random value.
         else if (serverQueue.category != category) {
             pauseTracks(serverQueue.serverId);
             serverQueue.tracks = tracks;
@@ -138,10 +142,10 @@ module.exports = {
             serverQueue.category = category;
         }
         try {
-            play(serverQueue.connection, serverQueue.player, interaction.guildId, serverQueue.tracks[serverQueue.index]);
+            play(interaction.guildId, serverQueue.tracks[serverQueue.index]);
             await interaction.reply(`There are ${serverQueue.tracks.length} tracks in the queue`);
         } catch (err) {
-            queue.delete(interaction.guildId);
+            deleteQueue(interaction.guildId);
             return interaction.channel.send(err);
         }
         return;
