@@ -1,3 +1,4 @@
+const { joinVoiceChannel } = require('@discordjs/voice');
 const connections = new Map();
 
 function getConnection(guildId, voiceChannel) {
