@@ -1,45 +1,14 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { tracksPath } = require('../../config.json');
-const fs = require('fs');
-const path = require('path')
-const {createAudioResource, AudioPlayerStatus, StreamType, VoiceConnectionStatus, entersState} = require("@discordjs/voice");
+const {AudioPlayerStatus, VoiceConnectionStatus, entersState} = require("@discordjs/voice");
 const { pauseTracks } = require('./pause.js');
 const { getPlayer } = require('../../managers/playerManager.js');
 const { getConnection } = require('../../managers/connectionManager.js');
 const { createQueue, getQueue, deleteQueue } = require('../../managers/queueManager.js');
-const { spawn } = require('child_process');
-const ffmpeg = require('ffmpeg-static');
-
+const { getTracks } = require('../../managers/trackManager.js');
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
-}
-
-function createResource(filePath) {
-    const process = spawn(ffmpeg, [
-        '-i', filePath,
-        '-vn',
-        '-f', 's16le',
-        '-ar', '48000',
-        '-ac', '2',
-        'pipe:1'
-    ]);
-    return createAudioResource(process.stdout, {
-        inputType: StreamType.Raw
-    });
-}
-
-function getTracks(tracksPath) {
-    const trackNames = fs.readdirSync(tracksPath);
-    const tracks = []
-    // Creates audio resources for the player from the tracks in the directory
-    for (let i = 0; i < trackNames.length; i++){
-        const trackName = trackNames[i]
-        const fullTrackPath = path.join(tracksPath, trackName);
-        const trackResource = createResource(fullTrackPath);
-        tracks.push(trackResource);
-    }
-    return tracks;
 }
 
 function repopulateQueue(serverQueue) {
