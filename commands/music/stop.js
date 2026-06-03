@@ -6,7 +6,6 @@ function stopTracks(guildId) {
     if (serverQueue && serverQueue.playing) {
         serverQueue.player.stop();
         serverQueue.connection.destroy();
-        deleteQueue(guildId);
         return 'Stopped playing music'
     }
     else {

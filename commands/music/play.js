@@ -2,14 +2,31 @@ const { SlashCommandBuilder } = require('discord.js');
 const { tracksPath } = require('../../config.json');
 const fs = require('fs');
 const path = require('path')
-const {createAudioResource, AudioPlayerStatus} = require("@discordjs/voice");
+const {createAudioResource, AudioPlayerStatus, StreamType, VoiceConnectionStatus, entersState} = require("@discordjs/voice");
 const { pauseTracks } = require('./pause.js');
 const { getPlayer } = require('../../managers/playerManager.js');
 const { getConnection } = require('../../managers/connectionManager.js');
-const { createQueue, getQueue } = require('../../managers/queueManager.js');
+const { createQueue, getQueue, deleteQueue } = require('../../managers/queueManager.js');
+const { spawn } = require('child_process');
+const ffmpeg = require('ffmpeg-static');
+
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * max);
+}
+
+function createResource(filePath) {
+    const process = spawn(ffmpeg, [
+        '-i', filePath,
+        '-vn',
+        '-f', 's16le',
+        '-ar', '48000',
+        '-ac', '2',
+        'pipe:1'
+    ]);
+    return createAudioResource(process.stdout, {
+        inputType: StreamType.Raw
+    });
 }
 
 function getTracks(tracksPath) {
@@ -19,11 +36,7 @@ function getTracks(tracksPath) {
     for (let i = 0; i < trackNames.length; i++){
         const trackName = trackNames[i]
         const fullTrackPath = path.join(tracksPath, trackName);
-        const trackResource = createAudioResource(fullTrackPath, {
-            metadata: {
-                title: trackName
-            }
-        }); // requires something called ffmpeg and aconv
+        const trackResource = createResource(fullTrackPath);
         tracks.push(trackResource);
     }
     return tracks;
@@ -72,7 +85,6 @@ function play(guildId, track) {
         });
         serverQueue.listenerSet = true;
     }
-    console.log(`Playing track ${track.metadata.title}`);
     player.play(track);
     serverQueue.playing = true;
 }
@@ -114,6 +126,12 @@ module.exports = {
         const player = getPlayer(interaction.guildId);
         const connection = getConnection(interaction.guildId, voiceChannel);
 
+        try {
+            await entersState(connection, VoiceConnectionStatus.Ready, 30_000);
+            console.log('Voice connection ready');
+        } catch (error) {
+            console.error('Failed to reach READY state within 30 seconds:', error);
+        }
         // if the queue contract does not exist for the server, 
         // makes a new queue contract as a server queue, and maps the server ID to it. 
         if (!serverQueue) {
@@ -129,7 +147,7 @@ module.exports = {
             });
             
             console.log(`Added queue contract for server ${interaction.guildId}`);
-            connection.subscribe(player);
+            // connection.subscribe(player);
         }
         // if the queue contract already exists, but the category of tracks requested is different from the category of tracks in the existing queue,
         // pauses the existing queue, replaces the existing queue's tracks with tracks from the new category, and resets the track index to a random value.
@@ -140,12 +158,14 @@ module.exports = {
             serverQueue.index = index;
             serverQueue.category = category;
         }
+
+        connection.subscribe(player);
         try {
             play(interaction.guildId, serverQueue.tracks[serverQueue.index]);
             await interaction.reply(`There are ${serverQueue.tracks.length} tracks in the queue`);
         } catch (err) {
             deleteQueue(interaction.guildId);
-            return interaction.channel.send(err);
+            return interaction.reply('error playing track, please try again');
         }
         return;
     }

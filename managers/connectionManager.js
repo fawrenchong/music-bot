@@ -9,7 +9,11 @@ function getConnection(guildId, voiceChannel) {
         guildId: voiceChannel.guild.id,
         adapterCreator: voiceChannel.guild.voiceAdapterCreator
     });
-    connection.on('stateChange', console.log);
+    connection.on('stateChange', (oldState, newState) => {
+            console.log(
+                `Connection: ${oldState.status} -> ${newState.status}`
+            );
+        });
     connections.set(guildId, connection);
 
     return connection;
