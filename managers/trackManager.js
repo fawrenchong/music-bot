@@ -9,7 +9,8 @@ const {
 
 const ffmpeg = require('ffmpeg-static');
 
-function createResource(filePath) {
+// Creates an audio resource from a given file path using ffmpeg to convert it to the appropriate format for Discord.js voice playback.
+function createResource(filePath, trackName) {
     const process = spawn(ffmpeg, [
         '-i', filePath,
         '-vn',
@@ -20,17 +21,21 @@ function createResource(filePath) {
     ]);
 
     return createAudioResource(process.stdout, {
-        inputType: StreamType.Raw
+        inputType: StreamType.Raw,
+        metadata: {
+            title: trackName
+        }
     });
 }
 
+// Reads all audio files from a specified directory and creates an array of audio resources for playback.
 function getTracks(trackDirectory) {
     const trackNames = fs.readdirSync(trackDirectory);
     const tracks = [];
 
     for (const trackName of trackNames) {
         const fullTrackPath = path.join(trackDirectory, trackName);
-        tracks.push(createResource(fullTrackPath));
+        tracks.push(createResource(fullTrackPath, trackName));
     }
 
     return tracks;

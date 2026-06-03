@@ -11,6 +11,7 @@ function getRandomInt(max) {
     return Math.floor(Math.random() * max);
 }
 
+// re-calls getTracks to get new tracks
 function repopulateQueue(serverQueue) {
     var tracks;
     if (!serverQueue) {
